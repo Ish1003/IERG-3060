@@ -1,188 +1,92 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
+#include "stm32f10x.h"
+#include "IERG3810_clock_tree.h"
+#include "IERG3810_TFTLCD.h"
+#include "IERG3810_USART.h"
+#include "IERG3810_NVIC.h"
+#include "IERG3810_LED.h"
+#include "IERG3810_Buzzer.h"
 
-//use case to switch to states
-
-int difficulty = 0;
-char all_cards[18] = "123456789ABCDEFGHI";
-int state;
-int ifend;
-int end;
-
-char cards_easy[16]; //real cards order
-char cards_easy_masked[16]; // 1/0, 1: '*', 0, ' '
-char cards_medium[24]; //real cards order
-char cards_medium_masked[24]; // 1/0, 1: '*', 0, ' '
-char cards_hard[36]; //real cards order
-char cards_hard_masked[36]; // 1/0, 1: '*', 0, ' '
-
-void drawSids();
-void drawDifficulty();
-void displayMainMenu();
-void getDifficulty();
-
-void generateCards(int difficulty);
-void countDown();
-void shuffleCards(char cards, int len);
-void generate16Cards();
-void generate24Cards();
-void generate36Cards();
-void drawTimer();
-void drawCards(int difficulty);
-void flipCard(int x, int y);
-void launchGame(int difficulty);
-void displayWin();
-void displayLose();
-void displayEnd(int end); //1 win 0 lose
-void selectRestart();
+void IERG3810_SYSTICK_Init1ms(void);
+void name_and_SID(void);
+void main_menu(void);
+void launch_game(void);
+void select_restart(void);
 
 
-int main(){
-    drawSids(); //wait for tigger
-    displayMainMenu(); //wait for trigger
-    getDifficulty(); //exception actually
-    launchGame(difficulty);
+u8 state=0;
+u8 task1HeartBeat;
+u8 task2HeartBeat;
 
-}
-
-void drawIcon()
+int main(void)
 {
-    printf("Matching Game!!");
+	IERG3810_SYSTICK_Init1ms();
+	IERG3810_clock_tree_Init();
+	IERG3810_USART2_Init(36, 9600);
+	IERG3810_Buzzer_Init();
+	IERG3810_TFTLCD_Init();
+	IERG3810_LED_Init();
+	IERG3810_NVIC_SetPriorityGroup(5);
+	IERG3810_key2_ExtiInit();
+	
+	while (1)
+	{
+		if(task1HeartBeat>=200)
+		{
+			task1HeartBeat=0;
+			GPIOB->ODR ^= 1 << 5;
+		}
+		switch (state)
+		{
+			case 0:
+				name_and_SID();
+				break;
+			case 1:
+				main_menu();
+				break;
+			case 2:
+				launch_game();
+				break;
+			case 3:
+				select_restart();
+				break;				
+		}
+	}
 }
 
-void drawDifficulty()
+void IERG3810_SYSTICK_Init1ms(void)
 {
-    printf("easy - 1");
-    printf("medium - 2");
-    printf("hard - 3");
+	//systick
+	SysTick->CTRL = 0; //clear
+	SysTick->LOAD = 72000/8 - 1; // 72 MHz = 72000000; 1 ms then 1000 Hz, and then /8
+	// CLKSOURCE = 0: STCLK (FCLK/8)
+	// clock tree refers, pend handler
+	SysTick->CTRL |= 0x03; // to be modified
+	//set internal clk, use interrupt, start count
 }
 
-void displayMainMenu()
+void EXTI2_IRQHandler(void)
 {
-    drawIcon();
-    drawDifficulty();
+	state = (state+1)%4;
+	
+	EXTI->PR = 1 << 2;
 }
 
-void getDifficulty()
+void name_and_SID(void)
 {
-    scanf("%d", &difficulty);
+	IERG3810_TFTLCD_FillRectangle(0xFFE0, 100, 100, 100, 100);
 }
 
-void void shuffleCards(char cards, int len) {
-    // Shuffle the array
-    for (int i = 0; i < len; i++) {
-        int j = rand() % len;
-        char temp = cards[i];
-        cards[i] = cards[j];
-        cards[j] = temp;
-    }
-}
-
-void generate16Cards()
+void main_menu(void)
 {
-    shuffleCards(all_cards, 18);
-    for(int i=0; i<8; i++)
-    {
-        cards_easy[i] = all_cards[i];
-        cards_easy[i+8] = all_cards[i];
-    }
-    shuffleCards(cards_easy, 16);
+	IERG3810_TFTLCD_FillRectangle(0xFF00, 100, 50, 100, 50);
 }
 
-void generate24Cards()
+void launch_game(void)
 {
-    shuffleCards(all_cards, 18);
-    for(int i=0; i<12; i++)
-    {
-        cards_medium[i] = all_cards[i];
-        cards_medium[i+12] = all_cards[i];
-    }
-    shuffleCards(cards_medium, 24);
+	IERG3810_TFTLCD_FillRectangle(0xFF00, 100, 150, 100, 150);
 }
 
-void generate36Cards()
+void select_restart(void)
 {
-    shuffleCards(all_cards, 18);
-    for(int i=0; i<18; i++)
-    {
-        cards_hard[i] = all_cards[i];
-        cards_hard[i+18] = all_cards[i];
-    }
-    shuffleCards(cards_hard, 36);
-}
-
-void generateCards(int difficulty)
-{
-    switch (difficulty)
-    {
-        case 1/* constant-expression */:
-            /* code */
-            generate16Cards();
-            break;
-        
-        case 2/* constant-expression */:
-            /* code */
-            generate24Cards();
-            break;
-        
-        case 3/* constant-expression */:
-            /* code */
-            generate36Cards();
-            break;
-        
-        default:
-            break;
-    }
-}
-
-void drawTimer(){
-    ;
-}
-
-void drawCards(int difficulty){
-    ;
-}
-
-void flipCard(int x, int y){
-    ;
-}
-
-void launchGame(int difficulty)
-{
-    generateCards(difficulty);
-    drawTimer();
-    drawCards(difficulty);
-    //if triggered event select cards
-    if(ifend){
-        displayEnd(end);
-    }
-    selectRestart();
-}
-
-void displayWin(){
-    end = 1;
-    ifend = 1;
-}
-
-void displayLose(){
-    end = 0;
-    ifend = 1;
-}
-void displayEnd(int end){
-    switch (end)
-    {
-    case 1/* constant-expression */:
-        /* code */
-        displayWin;
-        break;
-    
-    default:
-        displayLose;
-        break;
-    }
-} //1 win 0 lose
-
-void selectRestart(){
-    ;
+	IERG3810_TFTLCD_FillRectangle(0xFF00, 100, 150, 100, 150);
 }
