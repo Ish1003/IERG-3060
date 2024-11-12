@@ -1,73 +1,188 @@
-#include "stm32f10x.h"
-#include "IERG3810_clock_tree.h"
-#include "IERG3810_TFTLCD.h"
-#include "IERG3810_USART.h"
-#include "IERG3810_NVIC.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 
-void IERG3810_key2_ExtiInit(void);
+//use case to switch to states
 
-u8 task1HeartBeat;
-u8 task2HeartBeat;
+int difficulty = 0;
+char all_cards[18] = "123456789ABCDEFGHI";
+int state;
+int ifend;
+int end;
 
-int main(void)
-{
-	IERG3810_clock_tree_Init();
-	IERG3810_USART2_Init(36, 9600);
-	IERG3810_Buzzer_Init();
-	IERG3810_TFTLCD_Init();
-	IERG3810_LED_Init();
-	IERG3810_NVIC_SetPriorityGroup(5);
-	IERG3810_key2_ExtiInit();
-	
-	while (1)
-	{
-		
-	}
-}
+char cards_easy[16]; //real cards order
+char cards_easy_masked[16]; // 1/0, 1: '*', 0, ' '
+char cards_medium[24]; //real cards order
+char cards_medium_masked[24]; // 1/0, 1: '*', 0, ' '
+char cards_hard[36]; //real cards order
+char cards_hard_masked[36]; // 1/0, 1: '*', 0, ' '
 
-void IERG3810_SYSTICK_Init10ms(void)
-{
-	//systick
-	SysTick->CTRL = 0; //clear
-	SysTick->LOAD = 720000/8 - 1; // 72 MHz = 72000000; 10 ms then 100 Hz, and then /8
-	// CLKSOURCE = 0: STCLK (FCLK/8)
-	// clock tree refers, pend handler
-	SysTick->CTRL |= 0x03; // to be modified
-	//set internal clk, use interrupt, start count
-}
+void drawSids();
+void drawDifficulty();
+void displayMainMenu();
+void getDifficulty();
 
-void IERG3810_key2_ExtiInit(void)
-{
-	//key2 -- exti-2
-	RCC->APB2ENR |= 1 << 6;
-	GPIOE->CRL &= 0xFFFFF0FF;
-	GPIOE->CRL |= 0x00000800;
-	GPIOE->ODR |= 1 << 2;
-	RCC->APB2ENR |= 0x01;
-	AFIO->EXTICR[0] &= 0xFFFFF0FF;
-	AFIO->EXTICR[0] |= 0x00000400;
-	EXTI->IMR |= 1 << 2;
-	EXTI->FTSR |= 1 << 2;
-	 // EXTI->RTSR |= 1 << 2;
-	
-	NVIC->IP[8] = 0x65;  //priority
-	NVIC->ISER[0] &= ~(1<<8);
-	
-	NVIC->ISER[0] |= (1<<8);
+void generateCards(int difficulty);
+void countDown();
+void shuffleCards(char cards, int len);
+void generate16Cards();
+void generate24Cards();
+void generate36Cards();
+void drawTimer();
+void drawCards(int difficulty);
+void flipCard(int x, int y);
+void launchGame(int difficulty);
+void displayWin();
+void displayLose();
+void displayEnd(int end); //1 win 0 lose
+void selectRestart();
+
+
+int main(){
+    drawSids(); //wait for tigger
+    displayMainMenu(); //wait for trigger
+    getDifficulty(); //exception actually
+    launchGame(difficulty);
 
 }
 
-void EXTI2_IRQHandler(void)
+void drawIcon()
 {
-	u8 i;
-	for(i = 0; i < 10; i++)
-	{
-		//DS0 on
-		GPIOB->BRR |= 1 << 5;
-		Delay(1000000);
-		//DS0 off
-		GPIOB->BSRR |= 1 << 5;
-		Delay(1000000);
-	}
-	EXTI->PR = 1 << 2;
+    printf("Matching Game!!");
+}
+
+void drawDifficulty()
+{
+    printf("easy - 1");
+    printf("medium - 2");
+    printf("hard - 3");
+}
+
+void displayMainMenu()
+{
+    drawIcon();
+    drawDifficulty();
+}
+
+void getDifficulty()
+{
+    scanf("%d", &difficulty);
+}
+
+void void shuffleCards(char cards, int len) {
+    // Shuffle the array
+    for (int i = 0; i < len; i++) {
+        int j = rand() % len;
+        char temp = cards[i];
+        cards[i] = cards[j];
+        cards[j] = temp;
+    }
+}
+
+void generate16Cards()
+{
+    shuffleCards(all_cards, 18);
+    for(int i=0; i<8; i++)
+    {
+        cards_easy[i] = all_cards[i];
+        cards_easy[i+8] = all_cards[i];
+    }
+    shuffleCards(cards_easy, 16);
+}
+
+void generate24Cards()
+{
+    shuffleCards(all_cards, 18);
+    for(int i=0; i<12; i++)
+    {
+        cards_medium[i] = all_cards[i];
+        cards_medium[i+12] = all_cards[i];
+    }
+    shuffleCards(cards_medium, 24);
+}
+
+void generate36Cards()
+{
+    shuffleCards(all_cards, 18);
+    for(int i=0; i<18; i++)
+    {
+        cards_hard[i] = all_cards[i];
+        cards_hard[i+18] = all_cards[i];
+    }
+    shuffleCards(cards_hard, 36);
+}
+
+void generateCards(int difficulty)
+{
+    switch (difficulty)
+    {
+        case 1/* constant-expression */:
+            /* code */
+            generate16Cards();
+            break;
+        
+        case 2/* constant-expression */:
+            /* code */
+            generate24Cards();
+            break;
+        
+        case 3/* constant-expression */:
+            /* code */
+            generate36Cards();
+            break;
+        
+        default:
+            break;
+    }
+}
+
+void drawTimer(){
+    ;
+}
+
+void drawCards(int difficulty){
+    ;
+}
+
+void flipCard(int x, int y){
+    ;
+}
+
+void launchGame(int difficulty)
+{
+    generateCards(difficulty);
+    drawTimer();
+    drawCards(difficulty);
+    //if triggered event select cards
+    if(ifend){
+        displayEnd(end);
+    }
+    selectRestart();
+}
+
+void displayWin(){
+    end = 1;
+    ifend = 1;
+}
+
+void displayLose(){
+    end = 0;
+    ifend = 1;
+}
+void displayEnd(int end){
+    switch (end)
+    {
+    case 1/* constant-expression */:
+        /* code */
+        displayWin;
+        break;
+    
+    default:
+        displayLose;
+        break;
+    }
+} //1 win 0 lose
+
+void selectRestart(){
+    ;
 }
